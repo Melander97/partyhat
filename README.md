@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎩 partyhat
 
-## Getting Started
+> Higher or Lower, but with Old School RuneScape items.
 
-First, run the development server:
+[Live demo](https://partyhat.vercel.app) · [Built by Alexander Melander](https://alexmelander.vercel.app) · [LinkedIn](https://www.linkedin.com/in/alexander-melander-0b804726a/)
+
+<!-- Screenshot placeholder — replace with a real GIF or screenshot after Phase 1 -->
+<!-- ![partyhat preview](./public/preview.png) -->
+
+## About
+
+Old School RuneScape has roughly 12,000 unique items, each with a live Grand Exchange price that fluctuates every day. I wanted to know: how well do players actually know what their stuff is worth?
+
+`partyhat` is a Higher or Lower game built on top of the real OSRS Grand Exchange. You're shown two items — you guess which one trades for more gp. The catch: the data is live, pulled from the official OSRS Wiki Prices API.
+
+I'm building this in public as I look for my next frontend or full-stack role. It's a learning project as much as a portfolio one — I'm using it to deepen my Next.js App Router, backend, and database skills.
+
+## Status
+
+🚧 **Phase 0 / 5 complete** — Foundation shipped. Game logic in progress.
+
+| Phase | Goal                                                       | Status  |
+| ----- | ---------------------------------------------------------- | ------- |
+| 0     | Foundation: repo, design system, landing page, deploy      | ✅ Done |
+| 1     | Core game loop: items, guessing, score, animations         | 🔜 Next |
+| 2     | Real backend: Postgres, scheduled price syncs, leaderboard | ⏳      |
+| 3     | Auth + persistent accounts                                 | ⏳      |
+| 4     | Analytics, error monitoring, SEO polish                    | ⏳      |
+
+## Tech
+
+- **Next.js 16** (App Router, Server Components, Turbopack)
+- **TypeScript** (strict mode, `noUncheckedIndexedAccess`)
+- **Tailwind CSS 4** with custom design tokens
+- **Framer Motion** for animations
+- **next-themes** for theme infrastructure
+- **Postgres + Drizzle ORM** (coming in Phase 2)
+- Deployed on **Vercel**
+
+## Data
+
+Item and price data comes from the [OSRS Wiki Real-time Prices API](https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices), used in accordance with their acceptable use policy. Once the backend lands, prices will be cached and refreshed on a schedule rather than fetched per-request, to be polite to the API.
+
+Not affiliated with Jagex Ltd.
+
+## Run it locally
 
 ```bash
+git clone git@github.com:melander97/partyhat.git
+cd partyhat
+npm install
+cp .env.example .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev          # start dev server (Turbopack)
+npm run build        # production build
+npm run start        # run the production build locally
+npm run lint         # ESLint
+npm run format       # Prettier write
+npm run format:check # Prettier check (no writes)
+```
 
-## Learn More
+## Notable design decisions
 
-To learn more about Next.js, take a look at the following resources:
+A few choices I made and the reasoning, since this is partly a learning project and the _why_ matters more than the _what_:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Next.js full-stack over a separate Node backend.** Faster to ship and forces me to learn App Router + Server Components deeply, which is the modern Next.js skill gap. I'd revisit this if the API ever needed to serve multiple frontends.
+- **Drizzle over Prisma** (coming Phase 2). Drizzle is closer to SQL and teaches more about what's actually happening at the database layer. Prisma hides more.
+- **Hand-written SVG for the partyhat** instead of an asset. Forces understanding of SVG paths, scales perfectly, and themes via CSS variables.
+- **Design tokens in CSS, not JS.** Using Tailwind 4's `@theme` block means colors live in one place and the entire site re-themes by changing a variable. Phase 1 will add a light theme to prove the system works.
+- **No Husky / commitlint.** I write Conventional Commits by habit; enforcing it via tooling would have been theater on a solo project. Will revisit if the project ever gets a collaborator.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT. Use whatever you want.
