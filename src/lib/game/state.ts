@@ -48,7 +48,13 @@ export function createInitialState(): GameState {
  * The core game reducer \u2014 pure function from (state, action) to new state.
  * All game rules live here. The UI just dispatches actions and renders state.
  */
-export function gameReducer(state: GameState, action: GameAction): GameState {
+export function gameReducer(state: GameState | null, action: GameAction): GameState | null {
+  // Initial null state \u2014 only 'restart' can populate it
+  if (state === null) {
+    if (action.type === 'restart') return createInitialState();
+    return null;
+  }
+
   switch (action.type) {
     case 'guess': {
       // Ignore guesses if we're not in the guessing phase
