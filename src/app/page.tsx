@@ -42,35 +42,45 @@ export default function Home() {
 
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:gap-4">
           <Link
-            href="https://github.com/melander97/partyhat"
+            href="/play"
+            className="bg-accent text-bg rounded-md border border-transparent px-8 py-3 text-sm font-semibold transition hover:opacity-90"
+          >
+            Play partyhat →
+          </Link>
+          <Link
+            href="https://github.com/Melander97/partyhat"
             target="_blank"
             rel="noopener noreferrer"
             className="border-border bg-bg-panel hover:border-accent hover:text-accent rounded-md border px-6 py-3 text-sm font-medium transition"
           >
             View on GitHub
           </Link>
-          <Link
-            href="https://alexmelander.vercel.app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-accent text-bg rounded-md border border-transparent px-6 py-3 text-sm font-medium transition hover:opacity-90"
-          >
-            Built by Alexander Melander
-          </Link>
         </div>
       </section>
 
       <footer className="text-text-muted px-6 py-5 text-center text-xs sm:px-10">
-        Not affiliated with Jagex Ltd. OSRS item and price data from the{' '}
-        <Link
-          href="https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-accent underline transition"
-        >
-          OSRS Wiki Prices API
-        </Link>
-        .
+        <p>
+          Built by{' '}
+          <Link
+            href="https://alexmelander.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-accent underline transition"
+          >
+            Alexander Melander
+          </Link>
+          {' \u00b7 '}
+          Not affiliated with Jagex Ltd. Item and price data from the{' '}
+          <Link
+            href="https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-accent underline transition"
+          >
+            OSRS Wiki Prices API
+          </Link>
+          .
+        </p>
       </footer>
     </main>
   );
