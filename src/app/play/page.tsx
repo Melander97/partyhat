@@ -1,0 +1,165 @@
+'use client';
+
+import { useEffect, useReducer, useState } from 'react';
+import Link from 'next/link';
+import { createInitialState, gameReducer, type GameState, type Guess } from '@/lib/game/state';
+import type { Item } from '@/types/item';
+import { formatGP } from '@/lib/format';
+
+export default function PlayPage() {
+  // Start with null state on both server and client \u2014 prevents hydration mismatch
+  // from Math.random() being called during SSR. Real state is populated after mount.
+  const [state, dispatch] = useReducer(gameReducer, null as GameState | null, () => null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    dispatch({ type: 'restart' });
+    setMounted(true);
+  }, []);
+
+  const onGuess = (guess: Guess) => {
+    dispatch({ type: 'guess', guess });
+  };
+
+  const onNext = () => {
+    dispatch({ type: 'next' });
+  };
+
+  const onRestart = () => {
+    dispatch({ type: 'restart' });
+  };
+
+  // Server render + initial client render: show a loading placeholder.
+  // After mount, useEffect populates state and the real UI renders.
+  if (!mounted || !state) {
+    return (
+      <main className="flex min-h-screen flex-col">
+        <header className="border-border flex items-center justify-between border-b px-6 py-4 sm:px-10">
+          <Link href="/" className="font-display text-accent">
+            partyhat
+          </Link>
+        </header>
+        <section className="flex flex-1 items-center justify-center px-6 py-10">
+          <p className="text-text-muted">Loading game\u2026</p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col">
+      <header className="border-border flex items-center justify-between border-b px-6 py-4 sm:px-10">
+        <Link href="/" className="font-display text-accent">
+          partyhat
+        </Link>
+        <p className="text-text-muted text-sm">
+          Streak: <span className="text-text font-semibold">{state.streak}</span>
+        </p>
+      </header>
+
+      <section className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-10">
+        <div className="flex flex-col items-center gap-8 sm:flex-row sm:gap-12">
+          <ItemCard item={state.anchor} priceVisible />
+
+          <p className="font-display text-text-muted text-2xl">vs</p>
+
+          <ItemCard item={state.mystery} priceVisible={state.phase !== 'guessing'} />
+        </div>
+
+        {state.phase === 'guessing' && (
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => onGuess('higher')}
+              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
+            >
+              ↑ Higher
+            </button>
+            <button
+              type="button"
+              onClick={() => onGuess('lower')}
+              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
+            >
+              ↓ Lower
+            </button>
+          </div>
+        )}
+
+        {state.phase === 'revealed' && (
+          <div className="flex flex-col items-center gap-4">
+            <p className="text-text text-lg">
+              ✓ Correct! Streak: <span className="text-accent font-semibold">{state.streak}</span>
+            </p>
+            <button
+              type="button"
+              onClick={onNext}
+              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
+        {state.phase === 'over' && (
+          <div className="flex flex-col items-center gap-4">
+            <p className="text-text text-2xl">
+              Game over. Final streak:{' '}
+              <span className="text-accent font-semibold">{state.streak}</span>
+            </p>
+            <button
+              type="button"
+              onClick={onRestart}
+              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
+            >
+              Play again
+            </button>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+interface ItemCardProps {
+  item: Item;
+  priceVisible: boolean;
+}
+
+function ItemCard({ item, priceVisible }: ItemCardProps) {
+  return (
+    <div className="border-border bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6">
+      <ItemIcon key={item.id} iconUrl={item.iconUrl} name={item.name} />
+      <p className="text-text text-center text-base font-medium">{item.name}</p>
+      <p className="text-text-muted h-7 text-lg">
+        {priceVisible ? formatGP(item.price) + ' gp' : '???'}
+      </p>
+    </div>
+  );
+}
+
+function ItemIcon({ iconUrl, name }: { iconUrl: string; name: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return (
+      <div
+        className="bg-bg-elevated text-text-muted flex h-12 w-12 items-center justify-center rounded"
+        aria-label={`${name} (image unavailable)`}
+      >
+        <span className="font-display text-xl">?</span>
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={iconUrl}
+      alt={name}
+      width={48}
+      height={48}
+      className="h-12 w-12 object-contain"
+      onError={() => setFailed(true)}
+    />
+  );
+}
