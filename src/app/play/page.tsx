@@ -2,12 +2,19 @@
 
 import { useEffect, useReducer, useState } from 'react';
 import Link from 'next/link';
-import { createInitialState, gameReducer, type GameState, type Guess } from '@/lib/game/state';
+import {
+  createInitialState,
+  gameReducer,
+  getStreakComment,
+  type GameState,
+  type Guess,
+} from '@/lib/game/state';
 import type { Item } from '@/types/item';
 import { formatGP } from '@/lib/format';
 import { RevealedPrice } from '@/components/game/revealed-price';
 import { VerdictBadge } from '@/components/game/verdict-badge';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FinalStreakNumber } from '@/components/game/final-streak-number';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -117,19 +124,31 @@ export default function PlayPage() {
         )}
 
         {state.phase === 'over' && (
-          <div className="flex flex-col items-center gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.3 }}
+            className="flex flex-col items-center gap-5"
+          >
             <VerdictBadge correct={false} />
-            <p className="text-text text-xl">
-              Final streak: <span className="text-accent font-semibold">{state.streak}</span>
-            </p>
-            <button
+
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-text-muted text-sm tracking-wider uppercase">Final streak</p>
+              <FinalStreakNumber value={state.streak} />
+              <p className="text-text-muted mt-1 text-base">{getStreakComment(state.streak)}</p>
+            </div>
+
+            <motion.button
               type="button"
               onClick={onRestart}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1.4, type: 'spring', stiffness: 200, damping: 20 }}
               className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
             >
               Play again
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         )}
       </section>
     </main>
