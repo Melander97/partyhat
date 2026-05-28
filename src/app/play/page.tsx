@@ -7,6 +7,7 @@ import type { Item } from '@/types/item';
 import { formatGP } from '@/lib/format';
 import { RevealedPrice } from '@/components/game/revealed-price';
 import { VerdictBadge } from '@/components/game/verdict-badge';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -61,18 +62,23 @@ export default function PlayPage() {
 
       <section className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-10">
         <div className="flex flex-col items-center gap-8 sm:flex-row sm:gap-12">
-          <ItemCard item={state.anchor} priceVisible />
+          <AnimatePresence mode="popLayout" initial={false}>
+            <ItemCard key={`anchor-${state.anchor.id}`} item={state.anchor} priceVisible />
+          </AnimatePresence>
 
           <p className="font-display text-text-muted text-2xl">vs</p>
 
-          <ItemCard
-            item={state.mystery}
-            priceVisible={state.phase !== 'guessing'}
-            animatePrice
-            verdict={
-              state.phase === 'guessing' ? null : state.lastGuessCorrect ? 'correct' : 'wrong'
-            }
-          />
+          <AnimatePresence mode="popLayout" initial={false}>
+            <ItemCard
+              key={`mystery-${state.mystery.id}`}
+              item={state.mystery}
+              priceVisible={state.phase !== 'guessing'}
+              animatePrice
+              verdict={
+                state.phase === 'guessing' ? null : state.lastGuessCorrect ? 'correct' : 'wrong'
+              }
+            />
+          </AnimatePresence>
         </div>
 
         {state.phase === 'guessing' && (
@@ -148,8 +154,14 @@ function ItemCard({ item, priceVisible, animatePrice = false, verdict = null }: 
         : 'border-border';
 
   return (
-    <div
-      className={`bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6 transition-all duration-500 ${verdictBorderClass}`}
+    <motion.div
+      layout
+      layoutId={`card-${item.id}`}
+      initial={{ opacity: 0, x: 60, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: -60, scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+      className={`bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6 ${verdictBorderClass}`}
     >
       <ItemIcon key={item.id} iconUrl={item.iconUrl} name={item.name} />
       <p className="text-text text-center text-base font-medium">{item.name}</p>
@@ -164,7 +176,7 @@ function ItemCard({ item, priceVisible, animatePrice = false, verdict = null }: 
           '???'
         )}
       </p>
-    </div>
+    </motion.div>
   );
 }
 
