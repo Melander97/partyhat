@@ -105,3 +105,19 @@ function isGuessCorrect(guess: Guess, anchorPrice: number, mysteryPrice: number)
   if (guess === 'higher') return mysteryPrice > anchorPrice;
   return mysteryPrice < anchorPrice;
 }
+
+/**
+ * Returns a short comment based on the player's final streak.
+ * Designed to add personality without being condescending on low scores.
+ */
+export function getStreakComment(streak: number): string {
+  if (streak === 0) return 'Tough start. Try again.';
+  if (streak < 3) return 'Just warming up.';
+  if (streak < 6) return 'Solid.';
+  if (streak < 10) return 'Nice run.';
+  if (streak < 15) return 'Impressive.';
+  if (streak < 25) return 'You know your prices.';
+  if (streak < 50) return 'Outstanding.';
+  if (streak < 100) return 'Did you High Alch the wiki?';
+  return 'B0aty is that you?';
+}
