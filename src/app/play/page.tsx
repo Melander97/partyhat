@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createInitialState, gameReducer, type GameState, type Guess } from '@/lib/game/state';
 import type { Item } from '@/types/item';
 import { formatGP } from '@/lib/format';
+import { RevealedPrice } from '@/components/game/revealed-price';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -63,7 +64,7 @@ export default function PlayPage() {
 
           <p className="font-display text-text-muted text-2xl">vs</p>
 
-          <ItemCard item={state.mystery} priceVisible={state.phase !== 'guessing'} />
+          <ItemCard item={state.mystery} priceVisible={state.phase !== 'guessing'} animatePrice />
         </div>
 
         {state.phase === 'guessing' && (
@@ -123,15 +124,25 @@ export default function PlayPage() {
 interface ItemCardProps {
   item: Item;
   priceVisible: boolean;
+  /** When true, the price counts up on reveal. Used for the mystery card. */
+  animatePrice?: boolean;
 }
 
-function ItemCard({ item, priceVisible }: ItemCardProps) {
+function ItemCard({ item, priceVisible, animatePrice = false }: ItemCardProps) {
   return (
     <div className="border-border bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6">
       <ItemIcon key={item.id} iconUrl={item.iconUrl} name={item.name} />
       <p className="text-text text-center text-base font-medium">{item.name}</p>
       <p className="text-text-muted h-7 text-lg">
-        {priceVisible ? formatGP(item.price) + ' gp' : '???'}
+        {priceVisible ? (
+          animatePrice ? (
+            <RevealedPrice key={item.id} value={item.price} />
+          ) : (
+            formatGP(item.price) + ' gp'
+          )
+        ) : (
+          '???'
+        )}
       </p>
     </div>
   );
