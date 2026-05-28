@@ -6,6 +6,7 @@ import { createInitialState, gameReducer, type GameState, type Guess } from '@/l
 import type { Item } from '@/types/item';
 import { formatGP } from '@/lib/format';
 import { RevealedPrice } from '@/components/game/revealed-price';
+import { VerdictBadge } from '@/components/game/verdict-badge';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -64,7 +65,14 @@ export default function PlayPage() {
 
           <p className="font-display text-text-muted text-2xl">vs</p>
 
-          <ItemCard item={state.mystery} priceVisible={state.phase !== 'guessing'} animatePrice />
+          <ItemCard
+            item={state.mystery}
+            priceVisible={state.phase !== 'guessing'}
+            animatePrice
+            verdict={
+              state.phase === 'guessing' ? null : state.lastGuessCorrect ? 'correct' : 'wrong'
+            }
+          />
         </div>
 
         {state.phase === 'guessing' && (
@@ -88,8 +96,9 @@ export default function PlayPage() {
 
         {state.phase === 'revealed' && (
           <div className="flex flex-col items-center gap-4">
-            <p className="text-text text-lg">
-              ✓ Correct! Streak: <span className="text-accent font-semibold">{state.streak}</span>
+            <VerdictBadge correct />
+            <p className="text-text-muted text-sm">
+              Streak: <span className="text-accent font-semibold">{state.streak}</span>
             </p>
             <button
               type="button"
@@ -103,9 +112,9 @@ export default function PlayPage() {
 
         {state.phase === 'over' && (
           <div className="flex flex-col items-center gap-4">
-            <p className="text-text text-2xl">
-              Game over. Final streak:{' '}
-              <span className="text-accent font-semibold">{state.streak}</span>
+            <VerdictBadge correct={false} />
+            <p className="text-text text-xl">
+              Final streak: <span className="text-accent font-semibold">{state.streak}</span>
             </p>
             <button
               type="button"
@@ -126,11 +135,22 @@ interface ItemCardProps {
   priceVisible: boolean;
   /** When true, the price counts up on reveal. Used for the mystery card. */
   animatePrice?: boolean;
+  /** When set, the card displays a colored border indicating the guess result. */
+  verdict?: 'correct' | 'wrong' | null;
 }
 
-function ItemCard({ item, priceVisible, animatePrice = false }: ItemCardProps) {
+function ItemCard({ item, priceVisible, animatePrice = false, verdict = null }: ItemCardProps) {
+  const verdictBorderClass =
+    verdict === 'correct'
+      ? 'border-green-500/40 shadow-[0_0_24px_rgba(34,197,94,0.15)]'
+      : verdict === 'wrong'
+        ? 'border-red-500/40 shadow-[0_0_24px_rgba(239,68,68,0.15)]'
+        : 'border-border';
+
   return (
-    <div className="border-border bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6">
+    <div
+      className={`bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6 transition-all duration-500 ${verdictBorderClass}`}
+    >
       <ItemIcon key={item.id} iconUrl={item.iconUrl} name={item.name} />
       <p className="text-text text-center text-base font-medium">{item.name}</p>
       <p className="text-text-muted h-7 text-lg">
