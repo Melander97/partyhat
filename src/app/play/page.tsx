@@ -15,6 +15,7 @@ import { RevealedPrice } from '@/components/game/revealed-price';
 import { VerdictBadge } from '@/components/game/verdict-badge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FinalStreakNumber } from '@/components/game/final-streak-number';
+import { GameButton } from '@/components/game/game-button';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -90,20 +91,12 @@ export default function PlayPage() {
 
         {state.phase === 'guessing' && (
           <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => onGuess('higher')}
-              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
-            >
+            <GameButton type="button" onClick={() => onGuess('higher')}>
               ↑ Higher
-            </button>
-            <button
-              type="button"
-              onClick={() => onGuess('lower')}
-              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
-            >
+            </GameButton>
+            <GameButton type="button" onClick={() => onGuess('lower')}>
               ↓ Lower
-            </button>
+            </GameButton>
           </div>
         )}
 
@@ -113,13 +106,9 @@ export default function PlayPage() {
             <p className="text-text-muted text-sm">
               Streak: <span className="text-accent font-semibold">{state.streak}</span>
             </p>
-            <button
-              type="button"
-              onClick={onNext}
-              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
-            >
+            <GameButton type="button" onClick={onNext}>
               Next →
-            </button>
+            </GameButton>
           </div>
         )}
 
@@ -138,16 +127,15 @@ export default function PlayPage() {
               <p className="text-text-muted mt-1 text-base">{getStreakComment(state.streak)}</p>
             </div>
 
-            <motion.button
+            <GameButton
               type="button"
               onClick={onRestart}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 1.4, type: 'spring', stiffness: 200, damping: 20 }}
-              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
+              transition={{ delay: 1.0, type: 'spring', stiffness: 200, damping: 20 }}
             >
               Play again
-            </motion.button>
+            </GameButton>
           </motion.div>
         )}
       </section>
