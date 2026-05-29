@@ -46,7 +46,7 @@ export default function PlayPage() {
   // After mount, useEffect populates state and the real UI renders.
   if (!mounted || !state) {
     return (
-      <main className="flex min-h-screen flex-col">
+      <main className="flex min-h-screen flex-col overflow-x-hidden">
         <header className="border-border flex items-center justify-between border-b px-6 py-4 sm:px-10">
           <Link href="/" className="font-display text-accent">
             partyhat
@@ -60,7 +60,7 @@ export default function PlayPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col">
+    <main className="flex min-h-screen flex-col overflow-x-hidden">
       <header className="border-border flex items-center justify-between border-b px-6 py-4 sm:px-10">
         <Link href="/" className="font-display text-accent">
           partyhat
