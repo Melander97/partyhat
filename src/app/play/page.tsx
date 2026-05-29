@@ -18,12 +18,15 @@ import { FinalStreakNumber } from '@/components/game/final-streak-number';
 import { GameButton } from '@/components/game/game-button';
 import Image from 'next/image';
 import { RunTimer } from '@/components/game/run-timer';
+import { useRecords } from '@/hooks/use-records';
+import type { Run } from '@/lib/records/types';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
   // from Math.random() being called during SSR. Real state is populated after mount.
   const [state, dispatch] = useReducer(gameReducer, null as GameState | null, () => null);
   const [mounted, setMounted] = useState(false);
+  const { records, saveRun, lastResult, mounted: recordsMounted } = useRecords();
 
   useEffect(() => {
     dispatch({ type: 'restart' });
@@ -41,6 +44,19 @@ export default function PlayPage() {
   const onRestart = () => {
     dispatch({ type: 'restart' });
   };
+
+  // Save the run to records when the game ends
+  useEffect(() => {
+    if (state?.phase !== 'over') return;
+    if (state.finalElapsedMs === null) return;
+
+    const run: Run = {
+      streak: state.streak,
+      timeMs: state.finalElapsedMs,
+    };
+
+    saveRun(run);
+  }, [state?.phase, state?.finalElapsedMs, state?.streak, saveRun]);
 
   // Server render + initial client render: show a loading placeholder.
   // After mount, useEffect populates state and the real UI renders.
