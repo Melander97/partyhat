@@ -51,7 +51,7 @@ export default function PlayPage() {
           </Link>
         </header>
         <section className="flex flex-1 items-center justify-center px-6 py-10">
-          <p className="text-text-muted">Loading game\u2026</p>
+          <p className="text-text-muted">Loading game…</p>
         </section>
       </main>
     );
@@ -189,6 +189,7 @@ function ItemCard({ item, priceVisible, animatePrice = false, verdict = null }: 
 
 function ItemIcon({ iconUrl, name }: { iconUrl: string; name: string }) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   if (failed) {
     return (
@@ -202,14 +203,23 @@ function ItemIcon({ iconUrl, name }: { iconUrl: string; name: string }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={iconUrl}
-      alt={name}
-      width={48}
-      height={48}
-      className="h-12 w-12 object-contain"
-      onError={() => setFailed(true)}
-    />
+    <div className="relative h-12 w-12">
+      {/* Skeleton placeholder \u2014 visible while image is loading */}
+      {!loaded && (
+        <div className="bg-bg-elevated absolute inset-0 animate-pulse rounded" aria-hidden="true" />
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={iconUrl}
+        alt={name}
+        width={48}
+        height={48}
+        className={`h-12 w-12 object-contain transition-opacity duration-200 ${
+          loaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+      />
+    </div>
   );
 }
