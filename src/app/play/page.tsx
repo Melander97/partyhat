@@ -16,6 +16,7 @@ import { VerdictBadge } from '@/components/game/verdict-badge';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FinalStreakNumber } from '@/components/game/final-streak-number';
 import { GameButton } from '@/components/game/game-button';
+import Image from 'next/image';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -209,7 +210,7 @@ function ItemIcon({ iconUrl, name }: { iconUrl: string; name: string }) {
         <div className="bg-bg-elevated absolute inset-0 animate-pulse rounded" aria-hidden="true" />
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={iconUrl}
         alt={name}
         width={48}
