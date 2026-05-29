@@ -2,9 +2,20 @@
 
 import { useEffect, useReducer, useState } from 'react';
 import Link from 'next/link';
-import { createInitialState, gameReducer, type GameState, type Guess } from '@/lib/game/state';
+import {
+  createInitialState,
+  gameReducer,
+  getStreakComment,
+  type GameState,
+  type Guess,
+} from '@/lib/game/state';
 import type { Item } from '@/types/item';
 import { formatGP } from '@/lib/format';
+import { RevealedPrice } from '@/components/game/revealed-price';
+import { VerdictBadge } from '@/components/game/verdict-badge';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FinalStreakNumber } from '@/components/game/final-streak-number';
+import { GameButton } from '@/components/game/game-button';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -40,7 +51,7 @@ export default function PlayPage() {
           </Link>
         </header>
         <section className="flex flex-1 items-center justify-center px-6 py-10">
-          <p className="text-text-muted">Loading game\u2026</p>
+          <p className="text-text-muted">Loading game…</p>
         </section>
       </main>
     );
@@ -59,61 +70,73 @@ export default function PlayPage() {
 
       <section className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-10">
         <div className="flex flex-col items-center gap-8 sm:flex-row sm:gap-12">
-          <ItemCard item={state.anchor} priceVisible />
+          <AnimatePresence mode="popLayout" initial={false}>
+            <ItemCard key={`anchor-${state.anchor.id}`} item={state.anchor} priceVisible />
+          </AnimatePresence>
 
           <p className="font-display text-text-muted text-2xl">vs</p>
 
-          <ItemCard item={state.mystery} priceVisible={state.phase !== 'guessing'} />
+          <AnimatePresence mode="popLayout" initial={false}>
+            <ItemCard
+              key={`mystery-${state.mystery.id}`}
+              item={state.mystery}
+              priceVisible={state.phase !== 'guessing'}
+              animatePrice
+              verdict={
+                state.phase === 'guessing' ? null : state.lastGuessCorrect ? 'correct' : 'wrong'
+              }
+            />
+          </AnimatePresence>
         </div>
 
         {state.phase === 'guessing' && (
           <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => onGuess('higher')}
-              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
-            >
+            <GameButton type="button" onClick={() => onGuess('higher')}>
               ↑ Higher
-            </button>
-            <button
-              type="button"
-              onClick={() => onGuess('lower')}
-              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
-            >
+            </GameButton>
+            <GameButton type="button" onClick={() => onGuess('lower')}>
               ↓ Lower
-            </button>
+            </GameButton>
           </div>
         )}
 
         {state.phase === 'revealed' && (
           <div className="flex flex-col items-center gap-4">
-            <p className="text-text text-lg">
-              ✓ Correct! Streak: <span className="text-accent font-semibold">{state.streak}</span>
+            <VerdictBadge correct />
+            <p className="text-text-muted text-sm">
+              Streak: <span className="text-accent font-semibold">{state.streak}</span>
             </p>
-            <button
-              type="button"
-              onClick={onNext}
-              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
-            >
+            <GameButton type="button" onClick={onNext}>
               Next →
-            </button>
+            </GameButton>
           </div>
         )}
 
         {state.phase === 'over' && (
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-text text-2xl">
-              Game over. Final streak:{' '}
-              <span className="text-accent font-semibold">{state.streak}</span>
-            </p>
-            <button
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.3 }}
+            className="flex flex-col items-center gap-5"
+          >
+            <VerdictBadge correct={false} />
+
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-text-muted text-sm tracking-wider uppercase">Final streak</p>
+              <FinalStreakNumber value={state.streak} />
+              <p className="text-text-muted mt-1 text-base">{getStreakComment(state.streak)}</p>
+            </div>
+
+            <GameButton
               type="button"
               onClick={onRestart}
-              className="bg-accent text-bg rounded-md px-8 py-3 font-medium hover:opacity-90"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1.0, type: 'spring', stiffness: 200, damping: 20 }}
             >
               Play again
-            </button>
-          </div>
+            </GameButton>
+          </motion.div>
         )}
       </section>
     </main>
@@ -123,22 +146,50 @@ export default function PlayPage() {
 interface ItemCardProps {
   item: Item;
   priceVisible: boolean;
+  /** When true, the price counts up on reveal. Used for the mystery card. */
+  animatePrice?: boolean;
+  /** When set, the card displays a colored border indicating the guess result. */
+  verdict?: 'correct' | 'wrong' | null;
 }
 
-function ItemCard({ item, priceVisible }: ItemCardProps) {
+function ItemCard({ item, priceVisible, animatePrice = false, verdict = null }: ItemCardProps) {
+  const verdictBorderClass =
+    verdict === 'correct'
+      ? 'border-green-500/40 shadow-[0_0_24px_rgba(34,197,94,0.15)]'
+      : verdict === 'wrong'
+        ? 'border-red-500/40 shadow-[0_0_24px_rgba(239,68,68,0.15)]'
+        : 'border-border';
+
   return (
-    <div className="border-border bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6">
+    <motion.div
+      layout
+      layoutId={`card-${item.id}`}
+      initial={{ opacity: 0, x: 60, scale: 0.95 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: -60, scale: 0.95 }}
+      transition={{ type: 'spring', stiffness: 280, damping: 28 }}
+      className={`bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6 ${verdictBorderClass}`}
+    >
       <ItemIcon key={item.id} iconUrl={item.iconUrl} name={item.name} />
       <p className="text-text text-center text-base font-medium">{item.name}</p>
       <p className="text-text-muted h-7 text-lg">
-        {priceVisible ? formatGP(item.price) + ' gp' : '???'}
+        {priceVisible ? (
+          animatePrice ? (
+            <RevealedPrice key={item.id} value={item.price} />
+          ) : (
+            formatGP(item.price) + ' gp'
+          )
+        ) : (
+          '???'
+        )}
       </p>
-    </div>
+    </motion.div>
   );
 }
 
 function ItemIcon({ iconUrl, name }: { iconUrl: string; name: string }) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   if (failed) {
     return (
@@ -152,14 +203,23 @@ function ItemIcon({ iconUrl, name }: { iconUrl: string; name: string }) {
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={iconUrl}
-      alt={name}
-      width={48}
-      height={48}
-      className="h-12 w-12 object-contain"
-      onError={() => setFailed(true)}
-    />
+    <div className="relative h-12 w-12">
+      {/* Skeleton placeholder \u2014 visible while image is loading */}
+      {!loaded && (
+        <div className="bg-bg-elevated absolute inset-0 animate-pulse rounded" aria-hidden="true" />
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={iconUrl}
+        alt={name}
+        width={48}
+        height={48}
+        className={`h-12 w-12 object-contain transition-opacity duration-200 ${
+          loaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        onLoad={() => setLoaded(true)}
+        onError={() => setFailed(true)}
+      />
+    </div>
   );
 }
