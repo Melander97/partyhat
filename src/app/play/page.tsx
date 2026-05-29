@@ -20,6 +20,7 @@ import Image from 'next/image';
 import { RunTimer } from '@/components/game/run-timer';
 import { useRecords } from '@/hooks/use-records';
 import type { Run } from '@/lib/records/types';
+import { RecordsDisplay } from '@/components/game/records-display';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -147,6 +148,8 @@ export default function PlayPage() {
               <FinalStreakNumber value={state.streak} />
               <p className="text-text-muted mt-1 text-base">{getStreakComment(state.streak)}</p>
             </div>
+
+            {recordsMounted && <RecordsDisplay records={records} newRecord={lastResult} />}
 
             <GameButton
               type="button"
