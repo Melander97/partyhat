@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FinalStreakNumber } from '@/components/game/final-streak-number';
 import { GameButton } from '@/components/game/game-button';
 import Image from 'next/image';
+import { RunTimer } from '@/components/game/run-timer';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
@@ -64,9 +65,12 @@ export default function PlayPage() {
         <Link href="/" className="font-display text-accent">
           partyhat
         </Link>
-        <p className="text-text-muted text-sm">
-          Streak: <span className="text-text font-semibold">{state.streak}</span>
-        </p>
+        <div className="flex items-center gap-5">
+          <RunTimer startedAt={state.startedAt} finalElapsedMs={state.finalElapsedMs} />
+          <p className="text-text-muted text-sm">
+            Streak: <span className="text-text font-semibold">{state.streak}</span>
+          </p>
+        </div>
       </header>
 
       <section className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-10">
