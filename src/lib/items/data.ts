@@ -60,7 +60,7 @@ export const ITEMS: Item[] = [
     id: 20997,
     name: "Ahrim's robetop",
     price: 2_500_000,
-    iconUrl: "https://oldschool.runescape.wiki/images/Ahrim's_robetop.png",
+    iconUrl: '/items/20997.png',
   },
 
   // === Ranged gear ===

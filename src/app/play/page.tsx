@@ -17,12 +17,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FinalStreakNumber } from '@/components/game/final-streak-number';
 import { GameButton } from '@/components/game/game-button';
 import Image from 'next/image';
+import { RunTimer } from '@/components/game/run-timer';
+import { useRecords } from '@/hooks/use-records';
+import type { Run } from '@/lib/records/types';
+import { RecordsDisplay } from '@/components/game/records-display';
 
 export default function PlayPage() {
   // Start with null state on both server and client \u2014 prevents hydration mismatch
   // from Math.random() being called during SSR. Real state is populated after mount.
   const [state, dispatch] = useReducer(gameReducer, null as GameState | null, () => null);
   const [mounted, setMounted] = useState(false);
+  const { records, saveRun, lastResult, mounted: recordsMounted } = useRecords();
 
   useEffect(() => {
     dispatch({ type: 'restart' });
@@ -41,11 +46,24 @@ export default function PlayPage() {
     dispatch({ type: 'restart' });
   };
 
+  // Save the run to records when the game ends
+  useEffect(() => {
+    if (state?.phase !== 'over') return;
+    if (state.finalElapsedMs === null) return;
+
+    const run: Run = {
+      streak: state.streak,
+      timeMs: state.finalElapsedMs,
+    };
+
+    saveRun(run);
+  }, [state?.phase, state?.finalElapsedMs, state?.streak, saveRun]);
+
   // Server render + initial client render: show a loading placeholder.
   // After mount, useEffect populates state and the real UI renders.
   if (!mounted || !state) {
     return (
-      <main className="flex min-h-screen flex-col">
+      <main className="flex min-h-screen flex-col overflow-x-hidden">
         <header className="border-border flex items-center justify-between border-b px-6 py-4 sm:px-10">
           <Link href="/" className="font-display text-accent">
             partyhat
@@ -59,14 +77,17 @@ export default function PlayPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col">
+    <main className="flex min-h-screen flex-col overflow-x-hidden">
       <header className="border-border flex items-center justify-between border-b px-6 py-4 sm:px-10">
         <Link href="/" className="font-display text-accent">
           partyhat
         </Link>
-        <p className="text-text-muted text-sm">
-          Streak: <span className="text-text font-semibold">{state.streak}</span>
-        </p>
+        <div className="flex items-center gap-5">
+          <RunTimer startedAt={state.startedAt} finalElapsedMs={state.finalElapsedMs} />
+          <p className="text-text-muted text-sm">
+            Streak: <span className="text-text font-semibold">{state.streak}</span>
+          </p>
+        </div>
       </header>
 
       <section className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-10">
@@ -127,6 +148,8 @@ export default function PlayPage() {
               <FinalStreakNumber value={state.streak} />
               <p className="text-text-muted mt-1 text-base">{getStreakComment(state.streak)}</p>
             </div>
+
+            {recordsMounted && <RecordsDisplay records={records} newRecord={lastResult} />}
 
             <GameButton
               type="button"
