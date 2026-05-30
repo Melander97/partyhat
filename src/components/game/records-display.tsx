@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { Records } from '@/lib/records/types';
 
 interface RecordsDisplayProps {
@@ -14,15 +14,16 @@ interface RecordsDisplayProps {
 
 export function RecordsDisplay({ records, newRecord }: RecordsDisplayProps) {
   // First-time player: nothing to compare against, render nothing
+  const prefersReducedMotion = useReducedMotion();
   if (records.highestStreak === 0 && records.bestRun === null) {
     return null;
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 1.0, duration: 0.4 }}
+      transition={{ delay: prefersReducedMotion ? 0.4 : 1.0, duration: 0.4 }}
       className="border-border bg-bg-panel/60 flex flex-col items-center gap-3 rounded-md border px-6 py-4"
     >
       <p className="text-text-muted text-xs tracking-wider uppercase">Your records</p>

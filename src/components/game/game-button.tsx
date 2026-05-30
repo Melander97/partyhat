@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import type { ComponentProps } from 'react';
 
 type GameButtonProps = ComponentProps<typeof motion.button> & {
@@ -13,6 +13,8 @@ export function GameButton({
   children,
   ...props
 }: GameButtonProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   const baseStyles =
     'relative rounded-md px-8 py-3 font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -23,7 +25,7 @@ export function GameButton({
 
   return (
     <motion.button
-      whileTap={{ scale: 0.97 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
       className={`${baseStyles} ${variantStyles} ${className}`}
       {...props}
     >
