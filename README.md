@@ -2,10 +2,9 @@
 
 > Higher or Lower, but with Old School RuneScape items.
 
-[Live demo](https://partyhat.vercel.app) · [Built by Alexander Melander](https://alexmelander.vercel.app) · [LinkedIn](https://www.linkedin.com/in/alexander-melander-0b804726a/)
+[Live demo](https://partyhat-orpin.vercel.app/play) · [Built by Alexander Melander](https://alexmelander.vercel.app) · [LinkedIn](https://www.linkedin.com/in/alexander-melander-0b804726a/)
 
-<!-- Screenshot placeholder — replace with a real GIF or screenshot after Phase 1 -->
-<!-- ![partyhat preview](./public/preview.png) -->
+![partyhat preview](docs/screenshots/partyhat.png)
 
 ## About
 
@@ -15,17 +14,27 @@ Old School RuneScape has roughly 12,000 unique items, each with a live Grand Exc
 
 I'm building this in public as I look for my next frontend or full-stack role. It's a learning project as much as a portfolio one — I'm using it to deepen my Next.js App Router, backend, and database skills.
 
-## Status
+## Project status
 
-🚧 **Phase 0 / 5 complete** — Foundation shipped. Game logic in progress.
+**Phase 1 (complete):** Playable Higher/Lower game with local persistence, animations, and accessibility support.
 
-| Phase | Goal                                                       | Status  |
-| ----- | ---------------------------------------------------------- | ------- |
-| 0     | Foundation: repo, design system, landing page, deploy      | ✅ Done |
-| 1     | Core game loop: items, guessing, score, animations         | 🔜 Next |
-| 2     | Real backend: Postgres, scheduled price syncs, leaderboard | ⏳      |
-| 3     | Auth + persistent accounts                                 | ⏳      |
-| 4     | Analytics, error monitoring, SEO polish                    | ⏳      |
+**Phase 2 (next):** Replace static dataset with live OSRS Wiki API data. Postgres-backed persistence. Background jobs to refresh prices on a schedule.
+
+**Phase 3:** Global leaderboard.
+
+**Phase 4:** Accounts, multi-device sync.
+
+## Phase 1 milestones (shipped)
+
+- [x] Foundation: design system, fonts, animated landing page
+- [x] Item data and types
+- [x] Game core loop
+- [x] Game UI polish (count-up, transitions, verdict feedback)
+- [x] Local image hosting
+- [x] Persistence and timer
+- [x] Reduced-motion respect
+
+Live game: https://partyhat-orpin.vercel.app/play
 
 ## Tech
 
