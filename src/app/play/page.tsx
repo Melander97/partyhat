@@ -1,7 +1,18 @@
 'use client';
 
-import { useEffect, useReducer, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
+import { useEffect, useReducer, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+
+import { FinalStreakNumber } from '@/components/game/final-streak-number';
+import { GameButton } from '@/components/game/game-button';
+import { RecordsDisplay } from '@/components/game/records-display';
+import { RevealedPrice } from '@/components/game/revealed-price';
+import { RunTimer } from '@/components/game/run-timer';
+import { VerdictBadge } from '@/components/game/verdict-badge';
+import { useRecords } from '@/hooks/use-records';
+import { formatGP } from '@/lib/format';
 import {
   createInitialState,
   gameReducer,
@@ -9,24 +20,15 @@ import {
   type GameState,
   type Guess,
 } from '@/lib/game/state';
-import type { Item } from '@/types/item';
-import { formatGP } from '@/lib/format';
-import { RevealedPrice } from '@/components/game/revealed-price';
-import { VerdictBadge } from '@/components/game/verdict-badge';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FinalStreakNumber } from '@/components/game/final-streak-number';
-import { GameButton } from '@/components/game/game-button';
-import Image from 'next/image';
-import { RunTimer } from '@/components/game/run-timer';
-import { useRecords } from '@/hooks/use-records';
 import type { Run } from '@/lib/records/types';
-import { RecordsDisplay } from '@/components/game/records-display';
+import type { Item } from '@/types/item';
 
 export default function PlayPage() {
-  // Start with null state on both server and client \u2014 prevents hydration mismatch
-  // from Math.random() being called during SSR. Real state is populated after mount.
+  // Start with null on both server and client to avoid a hydration mismatch
+  // from Math.random() in createInitialState.
   const [state, dispatch] = useReducer(gameReducer, null as GameState | null, () => null);
   const [mounted, setMounted] = useState(false);
+
   const { records, saveRun, lastResult, mounted: recordsMounted } = useRecords();
 
   useEffect(() => {
@@ -60,8 +62,7 @@ export default function PlayPage() {
   }, [state?.phase, state?.finalElapsedMs, state?.streak, saveRun]);
 
   // Server render + initial client render: show a loading placeholder.
-  // After mount, useEffect populates state and the real UI renders.
-  if (!mounted || !state) {
+  if (!mounted || state === null) {
     return (
       <main className="flex min-h-screen flex-col overflow-x-hidden">
         <header className="border-border flex items-center justify-between border-b px-6 py-4 sm:px-10">
@@ -69,7 +70,7 @@ export default function PlayPage() {
             partyhat
           </Link>
         </header>
-        <section className="flex flex-1 items-center justify-center px-6 py-10">
+        <section className="flex flex-1 items-center justify-center">
           <p className="text-text-muted">Loading game…</p>
         </section>
       </main>
@@ -90,7 +91,7 @@ export default function PlayPage() {
         </div>
       </header>
 
-      <section className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-10">
+      <section className="flex flex-1 flex-col items-center justify-center gap-10 px-6 py-10">
         <div className="flex flex-col items-center gap-8 sm:flex-row sm:gap-12">
           <AnimatePresence mode="popLayout" initial={false}>
             <ItemCard key={`anchor-${state.anchor.id}`} item={state.anchor} priceVisible />
@@ -135,35 +136,70 @@ export default function PlayPage() {
         )}
 
         {state.phase === 'over' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.3 }}
-            className="flex flex-col items-center gap-5"
-          >
-            <VerdictBadge correct={false} />
-
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-text-muted text-sm tracking-wider uppercase">Final streak</p>
-              <FinalStreakNumber value={state.streak} />
-              <p className="text-text-muted mt-1 text-base">{getStreakComment(state.streak)}</p>
-            </div>
-
-            {recordsMounted && <RecordsDisplay records={records} newRecord={lastResult} />}
-
-            <GameButton
-              type="button"
-              onClick={onRestart}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 1.0, type: 'spring', stiffness: 200, damping: 20 }}
-            >
-              Play again
-            </GameButton>
-          </motion.div>
+          <GameOverBlock
+            streak={state.streak}
+            records={records}
+            recordsMounted={recordsMounted}
+            lastResult={lastResult}
+            onRestart={onRestart}
+          />
         )}
       </section>
     </main>
+  );
+}
+
+interface GameOverBlockProps {
+  streak: number;
+  records: ReturnType<typeof useRecords>['records'];
+  recordsMounted: boolean;
+  lastResult: ReturnType<typeof useRecords>['lastResult'];
+  onRestart: () => void;
+}
+
+function GameOverBlock({
+  streak,
+  records,
+  recordsMounted,
+  lastResult,
+  onRestart,
+}: GameOverBlockProps) {
+  const prefersReducedMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        delay: prefersReducedMotion ? 0.2 : 0.6,
+        duration: prefersReducedMotion ? 0.2 : 0.3,
+      }}
+      className="flex flex-col items-center gap-5"
+    >
+      <VerdictBadge correct={false} />
+
+      <div className="flex flex-col items-center gap-1">
+        <p className="text-text-muted text-sm tracking-wider uppercase">Final streak</p>
+        <FinalStreakNumber value={streak} />
+        <p className="text-text-muted mt-1 text-base">{getStreakComment(streak)}</p>
+      </div>
+
+      {recordsMounted && <RecordsDisplay records={records} newRecord={lastResult} />}
+
+      <GameButton
+        type="button"
+        onClick={onRestart}
+        initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={
+          prefersReducedMotion
+            ? { delay: 0.4, duration: 0.2 }
+            : { delay: 1.0, type: 'spring', stiffness: 200, damping: 20 }
+        }
+      >
+        Play again
+      </GameButton>
+    </motion.div>
   );
 }
 
@@ -177,6 +213,8 @@ interface ItemCardProps {
 }
 
 function ItemCard({ item, priceVisible, animatePrice = false, verdict = null }: ItemCardProps) {
+  const prefersReducedMotion = useReducedMotion();
+
   const verdictBorderClass =
     verdict === 'correct'
       ? 'border-green-500/40 shadow-[0_0_24px_rgba(34,197,94,0.15)]'
@@ -186,13 +224,15 @@ function ItemCard({ item, priceVisible, animatePrice = false, verdict = null }: 
 
   return (
     <motion.div
-      layout
-      layoutId={`card-${item.id}`}
-      initial={{ opacity: 0, x: 60, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: -60, scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-      className={`bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6 ${verdictBorderClass}`}
+      layout={!prefersReducedMotion}
+      layoutId={prefersReducedMotion ? undefined : `card-${item.id}`}
+      initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: 60, scale: 0.95 }}
+      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, x: 0, scale: 1 }}
+      exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, x: -60, scale: 0.95 }}
+      transition={
+        prefersReducedMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 280, damping: 28 }
+      }
+      className={`bg-bg-panel flex w-56 flex-col items-center gap-3 rounded-md border px-6 py-6 transition-all duration-500 ${verdictBorderClass}`}
     >
       <ItemIcon key={item.id} iconUrl={item.iconUrl} name={item.name} />
       <p className="text-text text-center text-base font-medium">{item.name}</p>
@@ -228,11 +268,9 @@ function ItemIcon({ iconUrl, name }: { iconUrl: string; name: string }) {
 
   return (
     <div className="relative h-12 w-12">
-      {/* Skeleton placeholder \u2014 visible while image is loading */}
       {!loaded && (
         <div className="bg-bg-elevated absolute inset-0 animate-pulse rounded" aria-hidden="true" />
       )}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <Image
         src={iconUrl}
         alt={name}
