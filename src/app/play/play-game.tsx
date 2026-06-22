@@ -28,19 +28,16 @@ interface PlayGameProps {
   itemPool: Item[];
 }
 
-export function PlayGame({ itemPool: _itemPool }: PlayGameProps) {
-  // _itemPool will replace the static ITEMS in step 3.
-  // For now, the game still works from the static dataset via createInitialState.
-
+export function PlayGame({ itemPool }: PlayGameProps) {
   const [state, dispatch] = useReducer(gameReducer, null as GameState | null, () => null);
   const [mounted, setMounted] = useState(false);
 
   const { records, saveRun, lastResult, mounted: recordsMounted } = useRecords();
 
   useEffect(() => {
-    dispatch({ type: 'restart' });
+    dispatch({ type: 'restart', pool: itemPool });
     setMounted(true);
-  }, []);
+  }, [itemPool]);
 
   const onGuess = (guess: Guess) => {
     dispatch({ type: 'guess', guess });
@@ -51,7 +48,7 @@ export function PlayGame({ itemPool: _itemPool }: PlayGameProps) {
   };
 
   const onRestart = () => {
-    dispatch({ type: 'restart' });
+    dispatch({ type: 'restart', pool: itemPool });
   };
 
   useEffect(() => {

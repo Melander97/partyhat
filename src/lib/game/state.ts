@@ -1,5 +1,4 @@
 import type { Item } from '@/types/item';
-import { getRandomItem, getRandomItemExcept, getRandomPair } from '@/lib/items';
 
 export type Phase = 'guessing' | 'revealed' | 'over';
 
@@ -12,39 +11,55 @@ export interface GameState {
   streak: number;
   lastGuess: Guess | null;
   lastGuessCorrect: boolean | null;
-  /**
-   * Timestamp (Date.now() ms) when the run started \u2014 set on the first guess.
-   * Null until the player makes their first move.
-   */
   startedAt: number | null;
-  /**
-   * Final elapsed time in ms, frozen at the moment of game-over.
-   * Null until the game ends. The live timer during play is computed from
-   * `startedAt` in the UI rather than stored in state, to avoid storing
-   * a value that changes every frame.
-   */
   finalElapsedMs: number | null;
+  /** Items available for future rounds. Doesn't include anchor or mystery. */
+  pool: Item[];
 }
 
-export type GameAction = { type: 'guess'; guess: Guess } | { type: 'next' } | { type: 'restart' };
+export type GameAction =
+  | { type: 'guess'; guess: Guess }
+  | { type: 'next' }
+  | { type: 'restart'; pool: Item[] };
 
-export function createInitialState(): GameState {
-  const [anchor, mystery] = getRandomPair();
+/**
+ * Pulls one item from a pool, returning [item, remainingPool].
+ * Throws if the pool is empty \u2014 callers must guard against that.
+ */
+function takeOne(pool: Item[]): { taken: Item; rest: Item[] } {
+  if (pool.length === 0) {
+    throw new Error('takeOne called with empty pool');
+  }
+  const index = Math.floor(Math.random() * pool.length);
+  const taken = pool[index]!;
+  const rest = [...pool.slice(0, index), ...pool.slice(index + 1)];
+  return { taken, rest };
+}
+
+export function createInitialState(pool: Item[]): GameState {
+  if (pool.length < 2) {
+    throw new Error(`createInitialState needs at least 2 items, got ${pool.length}`);
+  }
+
+  const first = takeOne(pool);
+  const second = takeOne(first.rest);
+
   return {
-    anchor,
-    mystery,
+    anchor: first.taken,
+    mystery: second.taken,
     phase: 'guessing',
     streak: 0,
     lastGuess: null,
     lastGuessCorrect: null,
     startedAt: null,
     finalElapsedMs: null,
+    pool: second.rest,
   };
 }
 
 export function gameReducer(state: GameState | null, action: GameAction): GameState | null {
   if (state === null) {
-    if (action.type === 'restart') return createInitialState();
+    if (action.type === 'restart') return createInitialState(action.pool);
     return null;
   }
 
@@ -54,10 +69,7 @@ export function gameReducer(state: GameState | null, action: GameAction): GameSt
 
       const correct = isGuessCorrect(action.guess, state.anchor.price, state.mystery.price);
 
-      // Start the timer on the very first guess of the run (when startedAt is still null)
       const startedAt = state.startedAt ?? Date.now();
-
-      // On a wrong guess, freeze the final elapsed time
       const finalElapsedMs = correct ? null : Date.now() - startedAt;
 
       return {
@@ -74,23 +86,31 @@ export function gameReducer(state: GameState | null, action: GameAction): GameSt
     case 'next': {
       if (state.phase !== 'revealed') return state;
 
-      const newAnchor = state.mystery;
-      const newMystery = getRandomItemExcept(newAnchor);
+      // Pool exhausted \u2014 player has cleared every item we pre-fetched.
+      // For now: end the game. Future work could re-fetch.
+      if (state.pool.length === 0) {
+        return {
+          ...state,
+          phase: 'over',
+          finalElapsedMs: state.startedAt ? Date.now() - state.startedAt : 0,
+        };
+      }
+
+      const { taken: newMystery, rest } = takeOne(state.pool);
 
       return {
-        anchor: newAnchor,
+        ...state,
+        anchor: state.mystery,
         mystery: newMystery,
         phase: 'guessing',
-        streak: state.streak,
         lastGuess: null,
         lastGuessCorrect: null,
-        startedAt: state.startedAt, // preserve across rounds
-        finalElapsedMs: null, // not over yet
+        pool: rest,
       };
     }
 
     case 'restart': {
-      return createInitialState();
+      return createInitialState(action.pool);
     }
   }
 }
@@ -110,5 +130,5 @@ export function getStreakComment(streak: number): string {
   if (streak < 25) return 'You know your prices.';
   if (streak < 50) return 'Outstanding.';
   if (streak < 100) return 'B0aty is that you?';
-  return 'Did you High alch the wiki?';
+  return 'Are you sure you’re not a wiki editor?';
 }
