@@ -1,18 +1,19 @@
 import 'server-only';
 import { sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { items } from '@/db/schema';
+import { items, prices } from '@/db/schema';
 import type { Item } from '@/types/item';
 
-/** How many items each session pre-fetches. ~50 = enough for any single session. */
 const POOL_SIZE = 50;
 
 /**
- * Fetches a random pool of items for a game session.
- * Filters to members-only items by default (better signal-to-noise than f2p
- * arrowtips and starter gear).
+ * Fetches a random pool of items for a game session, with current prices.
  *
- * Returns items in the shape the game expects (matches our existing Item type).
+ * Only returns items that:
+ *  - Are members-only (better signal-to-noise than f2p commodity items)
+ *  - Are in the game pool
+ *  - Have both high and low prices set (i.e., tradeable and recently active)
+ *  - Have an average price of at least 100 gp (excludes near-worthless items)
  */
 export async function getItemPool(): Promise<Item[]> {
   const rows = await db
@@ -20,19 +21,27 @@ export async function getItemPool(): Promise<Item[]> {
       id: items.id,
       name: items.name,
       iconUrl: items.iconUrl,
+      highPrice: prices.highPrice,
+      lowPrice: prices.lowPrice,
     })
     .from(items)
-    .where(sql`${items.members} = 1 AND ${items.inGamePool} = 1`)
+    .innerJoin(prices, sql`${items.id} = ${prices.itemId}`)
+    .where(
+      sql`${items.members} = 1
+        AND ${items.inGamePool} = 1
+        AND ${prices.highPrice} IS NOT NULL
+        AND ${prices.lowPrice} IS NOT NULL
+        AND ((${prices.highPrice} + ${prices.lowPrice}) / 2) >= 100`,
+    )
     .orderBy(sql`random()`)
     .limit(POOL_SIZE);
 
-  // Until we have prices in the DB (branch 2.4), use a placeholder.
-  // The game type expects a `price` field, so we satisfy the contract.
-  // This will be replaced with real prices once branch 2.4 lands.
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    price: 0, // placeholder until prices are seeded
+    // Use the midpoint of high and low as "the price" for Higher/Lower.
+    // More stable than either half of the spread.
+    price: Math.round(((row.highPrice ?? 0) + (row.lowPrice ?? 0)) / 2),
     iconUrl: row.iconUrl,
   }));
 }
