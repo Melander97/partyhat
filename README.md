@@ -18,21 +18,19 @@ I'm building this in public as I look for my next frontend or full-stack role. I
 
 **Phase 1 (complete):** Playable Higher/Lower game with local persistence, animations, and accessibility support.
 
-**Phase 2 (next):** Replace static dataset with live OSRS Wiki API data. Postgres-backed persistence. Background jobs to refresh prices on a schedule.
+**Phase 2 (complete):** Live OSRS Wiki API data, Postgres-backed persistence via Drizzle ORM, scheduled data refreshes via Vercel Cron.
 
-**Phase 3:** Global leaderboard.
+**Phase 3 (next):** Global leaderboard.
 
 **Phase 4:** Accounts, multi-device sync.
 
-## Phase 1 milestones (shipped)
+## Phase 2 milestones (shipped)
 
-- [x] Foundation: design system, fonts, animated landing page
-- [x] Item data and types
-- [x] Game core loop
-- [x] Game UI polish (count-up, transitions, verdict feedback)
-- [x] Local image hosting
-- [x] Persistence and timer
-- [x] Reduced-motion respect
+- [x] Postgres + Drizzle setup on Neon
+- [x] Seed items from OSRS Wiki mapping
+- [x] Swap game data source from static to database
+- [x] Scheduled daily price refresh and weekly item refresh
+- [x] Remove static items dataset
 
 Live game: https://partyhat-orpin.vercel.app/play
 
