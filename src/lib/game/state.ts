@@ -1,8 +1,9 @@
+import { isGuessCorrect, type Guess } from '@/lib/game/rules';
 import type { Item } from '@/types/item';
 
-export type Phase = 'guessing' | 'revealed' | 'over';
+export type { Guess };
 
-export type Guess = 'higher' | 'lower';
+export type Phase = 'guessing' | 'revealed' | 'over';
 
 export interface GameState {
   anchor: Item;
@@ -113,12 +114,6 @@ export function gameReducer(state: GameState | null, action: GameAction): GameSt
       return createInitialState(action.pool);
     }
   }
-}
-
-function isGuessCorrect(guess: Guess, anchorPrice: number, mysteryPrice: number): boolean {
-  if (mysteryPrice === anchorPrice) return true;
-  if (guess === 'higher') return mysteryPrice > anchorPrice;
-  return mysteryPrice < anchorPrice;
 }
 
 export function getStreakComment(streak: number): string {
