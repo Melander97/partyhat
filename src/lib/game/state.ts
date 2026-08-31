@@ -1,118 +1,146 @@
-import { isGuessCorrect, type Guess } from '@/lib/game/rules';
+import type { Guess } from '@/lib/game/rules';
+import type { GuessResponse, HiddenItem } from '@/lib/game/api-types';
 import type { Item } from '@/types/item';
 
 export type { Guess };
 
 export type Phase = 'guessing' | 'revealed' | 'over';
 
+/** The next round's data, prefetched as part of a correct guess response so
+ * clicking "Next" is instant — no second network round-trip per round. */
+interface PendingNext {
+  anchor: Item;
+  mystery: HiddenItem;
+  token: string;
+}
+
 export interface GameState {
   anchor: Item;
-  mystery: Item;
+  mystery: HiddenItem;
   phase: Phase;
   streak: number;
   lastGuess: Guess | null;
   lastGuessCorrect: boolean | null;
+  /** The mystery item's real price, once the server has revealed it. */
+  revealedPrice: number | null;
+  /** True while a guess is in flight — used to disable the buttons. */
+  submitting: boolean;
+  /** True only for the (very unlikely) case where the item pool was fully
+   * exhausted on a correct guess — a win, not a loss, so the game-over
+   * screen shouldn't show a "wrong" verdict. */
+  wonByExhaustion: boolean;
   startedAt: number | null;
   finalElapsedMs: number | null;
-  /** Items available for future rounds. Doesn't include anchor or mystery. */
-  pool: Item[];
+  /** Signed token for the *current* guessing round. Sent with the next guess. */
+  token: string;
+  pendingNext: PendingNext | null;
+  /** A brief user-facing note, e.g. after an idle-token expiry auto-restart. */
+  notice: string | null;
 }
 
 export type GameAction =
-  | { type: 'guess'; guess: Guess }
+  | { type: 'started'; anchor: Item; mystery: HiddenItem; token: string; notice?: string }
+  | { type: 'guessSubmitted'; guess: Guess }
+  | { type: 'guessResolved'; result: GuessResponse }
   | { type: 'next' }
-  | { type: 'restart'; pool: Item[] };
-
-/**
- * Pulls one item from a pool, returning [item, remainingPool].
- * Throws if the pool is empty \u2014 callers must guard against that.
- */
-function takeOne(pool: Item[]): { taken: Item; rest: Item[] } {
-  if (pool.length === 0) {
-    throw new Error('takeOne called with empty pool');
-  }
-  const index = Math.floor(Math.random() * pool.length);
-  const taken = pool[index]!;
-  const rest = [...pool.slice(0, index), ...pool.slice(index + 1)];
-  return { taken, rest };
-}
-
-export function createInitialState(pool: Item[]): GameState {
-  if (pool.length < 2) {
-    throw new Error(`createInitialState needs at least 2 items, got ${pool.length}`);
-  }
-
-  const first = takeOne(pool);
-  const second = takeOne(first.rest);
-
-  return {
-    anchor: first.taken,
-    mystery: second.taken,
-    phase: 'guessing',
-    streak: 0,
-    lastGuess: null,
-    lastGuessCorrect: null,
-    startedAt: null,
-    finalElapsedMs: null,
-    pool: second.rest,
-  };
-}
+  | { type: 'dismissNotice' };
 
 export function gameReducer(state: GameState | null, action: GameAction): GameState | null {
-  if (state === null) {
-    if (action.type === 'restart') return createInitialState(action.pool);
-    return null;
+  if (action.type === 'started') {
+    return {
+      anchor: action.anchor,
+      mystery: action.mystery,
+      phase: 'guessing',
+      streak: 0,
+      lastGuess: null,
+      lastGuessCorrect: null,
+      revealedPrice: null,
+      submitting: false,
+      wonByExhaustion: false,
+      // Starts now, matching the server — the token's startedAt was already
+      // stamped at the /api/game/start call this is a response to.
+      startedAt: Date.now(),
+      finalElapsedMs: null,
+      token: action.token,
+      pendingNext: null,
+      notice: action.notice ?? null,
+    };
   }
 
+  if (state === null) return null;
+
   switch (action.type) {
-    case 'guess': {
-      if (state.phase !== 'guessing') return state;
+    case 'guessSubmitted': {
+      if (state.phase !== 'guessing' || state.submitting) return state;
+      return { ...state, submitting: true, lastGuess: action.guess };
+    }
 
-      const correct = isGuessCorrect(action.guess, state.anchor.price, state.mystery.price);
+    case 'guessResolved': {
+      if (!state.submitting) return state;
+      const { result } = action;
 
-      const startedAt = state.startedAt ?? Date.now();
-      const finalElapsedMs = correct ? null : Date.now() - startedAt;
+      if (!result.correct) {
+        return {
+          ...state,
+          phase: 'over',
+          submitting: false,
+          lastGuessCorrect: false,
+          wonByExhaustion: false,
+          revealedPrice: result.revealedPrice,
+          finalElapsedMs: result.durationMs,
+        };
+      }
+
+      if (result.poolExhausted) {
+        return {
+          ...state,
+          phase: 'over',
+          submitting: false,
+          lastGuessCorrect: true,
+          wonByExhaustion: true,
+          revealedPrice: result.revealedPrice,
+          streak: result.finalStreak,
+          finalElapsedMs: result.durationMs,
+        };
+      }
 
       return {
         ...state,
-        phase: correct ? 'revealed' : 'over',
-        lastGuess: action.guess,
-        lastGuessCorrect: correct,
-        streak: correct ? state.streak + 1 : state.streak,
-        startedAt,
-        finalElapsedMs,
+        phase: 'revealed',
+        submitting: false,
+        lastGuessCorrect: true,
+        revealedPrice: result.revealedPrice,
+        streak: result.streak,
+        pendingNext: {
+          anchor: result.nextAnchor,
+          mystery: result.nextMystery,
+          token: result.token,
+        },
       };
     }
 
     case 'next': {
-      if (state.phase !== 'revealed') return state;
-
-      // Pool exhausted \u2014 player has cleared every item we pre-fetched.
-      // For now: end the game. Future work could re-fetch.
-      if (state.pool.length === 0) {
-        return {
-          ...state,
-          phase: 'over',
-          finalElapsedMs: state.startedAt ? Date.now() - state.startedAt : 0,
-        };
-      }
-
-      const { taken: newMystery, rest } = takeOne(state.pool);
-
+      if (state.phase !== 'revealed' || !state.pendingNext) return state;
+      const { anchor, mystery, token } = state.pendingNext;
       return {
         ...state,
-        anchor: state.mystery,
-        mystery: newMystery,
+        anchor,
+        mystery,
+        token,
         phase: 'guessing',
         lastGuess: null,
         lastGuessCorrect: null,
-        pool: rest,
+        revealedPrice: null,
+        pendingNext: null,
       };
     }
 
-    case 'restart': {
-      return createInitialState(action.pool);
+    case 'dismissNotice': {
+      return { ...state, notice: null };
     }
+
+    default:
+      return state;
   }
 }
 
