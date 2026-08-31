@@ -13,42 +13,75 @@ import { RunTimer } from '@/components/game/run-timer';
 import { VerdictBadge } from '@/components/game/verdict-badge';
 import { useRecords } from '@/hooks/use-records';
 import { formatGP } from '@/lib/format';
-import {
-  createInitialState,
-  gameReducer,
-  getStreakComment,
-  type GameState,
-  type Guess,
-} from '@/lib/game/state';
+import { GameApiError, RunExpiredError, startRun, submitGuess } from '@/lib/game/client';
+import { gameReducer, getStreakComment, type GameState, type Guess } from '@/lib/game/state';
 import type { Run } from '@/lib/records/types';
 import type { Item } from '@/types/item';
 
-interface PlayGameProps {
-  /** Initial pool of items for this session. Reserved for branch 2.3 step 3 \u2014 currently unused. */
-  itemPool: Item[];
-}
-
-export function PlayGame({ itemPool }: PlayGameProps) {
+export function PlayGame() {
   const [state, dispatch] = useReducer(gameReducer, null as GameState | null, () => null);
   const [mounted, setMounted] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [fatalError, setFatalError] = useState<Error | null>(null);
 
   const { records, saveRun, lastResult, mounted: recordsMounted } = useRecords();
 
-  useEffect(() => {
-    dispatch({ type: 'restart', pool: itemPool });
-    setMounted(true);
-  }, [itemPool]);
+  // Boots a fresh run from the server. Used on first mount and for "Play
+  // again" — both cases want a brand-new streak-0 run.
+  const boot = async (notice?: string) => {
+    try {
+      const data = await startRun();
+      dispatch({
+        type: 'started',
+        anchor: data.anchor,
+        mystery: data.mystery,
+        token: data.token,
+        notice,
+      });
+    } catch (error) {
+      setFatalError(error instanceof Error ? error : new Error('Failed to start a new run'));
+    }
+  };
 
-  const onGuess = (guess: Guess) => {
-    dispatch({ type: 'guess', guess });
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await boot();
+      if (!cancelled) setMounted(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onGuess = async (guess: Guess) => {
+    if (!state || state.phase !== 'guessing' || state.submitting) return;
+
+    dispatch({ type: 'guessSubmitted', guess });
+    try {
+      const result = await submitGuess(state.token, guess);
+      dispatch({ type: 'guessResolved', result });
+    } catch (error) {
+      if (error instanceof RunExpiredError) {
+        await boot('Your run timed out from inactivity — started a new one.');
+        return;
+      }
+      setFatalError(
+        error instanceof GameApiError || error instanceof Error
+          ? error
+          : new Error('Failed to submit guess'),
+      );
+    }
   };
 
   const onNext = () => {
     dispatch({ type: 'next' });
   };
 
-  const onRestart = () => {
-    dispatch({ type: 'restart', pool: itemPool });
+  const onRestart = async () => {
+    setRestarting(true);
+    await boot();
+    setRestarting(false);
   };
 
   useEffect(() => {
@@ -62,6 +95,21 @@ export function PlayGame({ itemPool }: PlayGameProps) {
 
     saveRun(run);
   }, [state?.phase, state?.finalElapsedMs, state?.streak, saveRun]);
+
+  // Auto-dismiss the idle-restart notice after a few seconds.
+  useEffect(() => {
+    if (!state?.notice) return;
+    const timeout = setTimeout(() => dispatch({ type: 'dismissNotice' }), 5000);
+    return () => clearTimeout(timeout);
+  }, [state?.notice]);
+
+  if (fatalError) {
+    // Surfaces to the nearest error boundary (src/app/play/error.tsx) —
+    // this only happens for genuinely unexpected conditions (network
+    // failure, a tampered/invalid token, no items available at all), not
+    // the expected idle-timeout case, which is handled by boot() above.
+    throw fatalError;
+  }
 
   if (!mounted || state === null) {
     return (
@@ -78,6 +126,8 @@ export function PlayGame({ itemPool }: PlayGameProps) {
     );
   }
 
+  const mysteryDisplayItem: Item = { ...state.mystery, price: state.revealedPrice ?? 0 };
+
   return (
     <main className="flex min-h-screen flex-col overflow-x-hidden">
       <header className="border-border flex items-center justify-between border-b px-6 py-4 sm:px-10">
@@ -92,6 +142,19 @@ export function PlayGame({ itemPool }: PlayGameProps) {
         </div>
       </header>
 
+      <AnimatePresence>
+        {state.notice && (
+          <motion.p
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-accent/10 text-accent px-6 py-2 text-center text-sm"
+          >
+            {state.notice}
+          </motion.p>
+        )}
+      </AnimatePresence>
+
       <section className="flex flex-1 flex-col items-center justify-center gap-10 px-6 py-10">
         <div className="flex flex-col items-center gap-8 sm:flex-row sm:gap-12">
           <AnimatePresence mode="popLayout" initial={false}>
@@ -103,7 +166,7 @@ export function PlayGame({ itemPool }: PlayGameProps) {
           <AnimatePresence mode="popLayout" initial={false}>
             <ItemCard
               key={`mystery-${state.mystery.id}`}
-              item={state.mystery}
+              item={mysteryDisplayItem}
               priceVisible={state.phase !== 'guessing'}
               animatePrice
               verdict={
@@ -115,10 +178,10 @@ export function PlayGame({ itemPool }: PlayGameProps) {
 
         {state.phase === 'guessing' && (
           <div className="flex gap-4">
-            <GameButton type="button" onClick={() => onGuess('higher')}>
+            <GameButton type="button" disabled={state.submitting} onClick={() => onGuess('higher')}>
               ↑ Higher
             </GameButton>
-            <GameButton type="button" onClick={() => onGuess('lower')}>
+            <GameButton type="button" disabled={state.submitting} onClick={() => onGuess('lower')}>
               ↓ Lower
             </GameButton>
           </div>
@@ -139,10 +202,12 @@ export function PlayGame({ itemPool }: PlayGameProps) {
         {state.phase === 'over' && (
           <GameOverBlock
             streak={state.streak}
+            won={state.wonByExhaustion}
             records={records}
             recordsMounted={recordsMounted}
             lastResult={lastResult}
             onRestart={onRestart}
+            restarting={restarting}
           />
         )}
       </section>
@@ -152,18 +217,22 @@ export function PlayGame({ itemPool }: PlayGameProps) {
 
 interface GameOverBlockProps {
   streak: number;
+  won: boolean;
   records: ReturnType<typeof useRecords>['records'];
   recordsMounted: boolean;
   lastResult: ReturnType<typeof useRecords>['lastResult'];
   onRestart: () => void;
+  restarting: boolean;
 }
 
 function GameOverBlock({
   streak,
+  won,
   records,
   recordsMounted,
   lastResult,
   onRestart,
+  restarting,
 }: GameOverBlockProps) {
   const prefersReducedMotion = useReducedMotion();
 
@@ -172,17 +241,22 @@ function GameOverBlock({
       initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        delay: prefersReducedMotion ? 0.2 : 0.6,
-        duration: prefersReducedMotion ? 0.2 : 0.3,
+        // Shortened from the original 0.6s/0.3s — a real network wait now
+        // happens before this phase is even reached, so that already
+        // supplies a "beat" and doesn't need as much added on top.
+        delay: prefersReducedMotion ? 0.2 : 0.2,
+        duration: prefersReducedMotion ? 0.2 : 0.2,
       }}
       className="flex flex-col items-center gap-5"
     >
-      <VerdictBadge correct={false} />
+      <VerdictBadge correct={won} />
 
       <div className="flex flex-col items-center gap-1">
         <p className="text-text-muted text-sm tracking-wider uppercase">Final streak</p>
         <FinalStreakNumber value={streak} />
-        <p className="text-text-muted mt-1 text-base">{getStreakComment(streak)}</p>
+        <p className="text-text-muted mt-1 text-base">
+          {won ? 'You cleared the entire item pool!' : getStreakComment(streak)}
+        </p>
       </div>
 
       {recordsMounted && <RecordsDisplay records={records} newRecord={lastResult} />}
@@ -190,15 +264,16 @@ function GameOverBlock({
       <GameButton
         type="button"
         onClick={onRestart}
+        disabled={restarting}
         initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={
           prefersReducedMotion
             ? { delay: 0.4, duration: 0.2 }
-            : { delay: 1.0, type: 'spring', stiffness: 200, damping: 20 }
+            : { delay: 0.5, type: 'spring', stiffness: 200, damping: 20 }
         }
       >
-        Play again
+        {restarting ? 'Starting…' : 'Play again'}
       </GameButton>
     </motion.div>
   );
