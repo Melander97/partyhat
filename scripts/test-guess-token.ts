@@ -4,7 +4,7 @@
  * and expired tokens are rejected.
  *
  * Run: npx tsx scripts/test-guess-token.ts
- * You can delete this script once you've confirmed it passes \u2014 same as
+ * You can delete this script once you've confirmed it passes — same as
  * the earlier test-db.ts.
  */
 import 'dotenv/config';
@@ -18,11 +18,11 @@ import {
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(`FAILED: ${message}`);
-  console.log(`  \u2713 ${message}`);
+  console.log(`  ✓ ${message}`);
 }
 
 async function main() {
-  const basePayload: Omit<GuessTokenPayload, 'exp'> = {
+  const basePayload: Omit<GuessTokenPayload, 'exp' | 'kind'> = {
     runId: 'test-run-123',
     anchorId: 1038,
     mysteryId: 1042,
@@ -36,6 +36,7 @@ async function main() {
   const verified = verifyGuessToken(token);
   assert(verified.runId === basePayload.runId, 'runId survives round-trip');
   assert(verified.streak === basePayload.streak, 'streak survives round-trip');
+  assert(verified.kind === 'guess-token', 'kind is stamped as guess-token');
   assert(
     JSON.stringify(verified.seenItemIds) === JSON.stringify(basePayload.seenItemIds),
     'seenItemIds survives round-trip',
@@ -74,9 +75,13 @@ async function main() {
   }
 
   console.log('\n5. Reject an expired token');
-  // Can't wait 60s in a test script \u2014 forge an already-expired payload
+  // Can't wait 60s in a test script — forge an already-expired payload
   // using the same body/sign shape verifyGuessToken expects.
-  const expiredPayload: GuessTokenPayload = { ...basePayload, exp: Date.now() - 1000 };
+  const expiredPayload: GuessTokenPayload = {
+    ...basePayload,
+    kind: 'guess-token',
+    exp: Date.now() - 1000,
+  };
   const expiredBody = Buffer.from(JSON.stringify(expiredPayload)).toString('base64url');
   const { createHmac } = await import('crypto');
   const expiredSig = createHmac('sha256', process.env.GAME_TOKEN_SECRET!)

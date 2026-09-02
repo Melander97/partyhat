@@ -1,4 +1,9 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import {
+  signPayload,
+  verifySignedPayload,
+  InvalidSignatureError,
+  ExpiredPayloadError,
+} from '@/lib/game/signing';
 
 /**
  * Stateless, server-signed representation of an in-progress game run.
@@ -6,11 +11,12 @@ import { createHmac, timingSafeEqual } from 'crypto';
  * The client holds this as an opaque string between guesses and echoes it
  * back on every request. The server verifies + re-issues it each step,
  * instead of keeping a DB row per in-progress run. Anything in here is
- * trusted by the server purely because the signature checks out \u2014 never
+ * trusted by the server purely because the signature checks out — never
  * because the client claims it.
  */
 export interface GuessTokenPayload {
-  /** Random id tying together every guess in one run. Not secret \u2014 just a correlation id. */
+  kind: 'guess-token';
+  /** Random id tying together every guess in one run. Not secret — just a correlation id. */
   runId: string;
   anchorId: number;
   mysteryId: number;
@@ -39,62 +45,29 @@ export class ExpiredTokenError extends Error {
   }
 }
 
-function getSecret(): string {
-  const secret = process.env.GAME_TOKEN_SECRET;
-  if (!secret) {
-    throw new Error('GAME_TOKEN_SECRET is not set');
-  }
-  return secret;
-}
-
-function sign(body: string): string {
-  return createHmac('sha256', getSecret()).update(body).digest('base64url');
-}
-
 /**
- * Signs a new token. Callers provide everything except `exp`, which this
- * function sets based on TOKEN_TTL_MS.
+ * Signs a new token. Callers provide everything except `exp`/`kind`, which
+ * this function sets.
  */
-export function issueGuessToken(payload: Omit<GuessTokenPayload, 'exp'>): string {
-  const full: GuessTokenPayload = { ...payload, exp: Date.now() + TOKEN_TTL_MS };
-  const body = Buffer.from(JSON.stringify(full)).toString('base64url');
-  return `${body}.${sign(body)}`;
+export function issueGuessToken(payload: Omit<GuessTokenPayload, 'exp' | 'kind'>): string {
+  return signPayload<GuessTokenPayload>({
+    ...payload,
+    kind: 'guess-token',
+    exp: Date.now() + TOKEN_TTL_MS,
+  });
 }
 
 /**
- * Verifies a token's signature and expiry, returning its payload if valid.
- * Throws InvalidTokenError (malformed / tampered) or ExpiredTokenError.
+ * Verifies a token's signature, kind, and expiry, returning its payload if
+ * valid. Throws InvalidTokenError (malformed / tampered / wrong kind) or
+ * ExpiredTokenError.
  */
 export function verifyGuessToken(token: string): GuessTokenPayload {
-  const parts = token.split('.');
-  if (parts.length !== 2) {
-    throw new InvalidTokenError('Malformed token');
-  }
-  const [body, signature] = parts as [string, string];
-
-  const expectedSignature = sign(body);
-  const sigBuf = Buffer.from(signature);
-  const expectedBuf = Buffer.from(expectedSignature);
-
-  // Length check first: timingSafeEqual throws on mismatched lengths rather
-  // than returning false, and a tampered signature won't always be the same
-  // length as the real one.
-  if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) {
-    throw new InvalidTokenError(
-      'Signature does not match \u2014 token was tampered with or forged',
-    );
-  }
-
-  let payload: GuessTokenPayload;
   try {
-    payload = JSON.parse(Buffer.from(body, 'base64url').toString()) as GuessTokenPayload;
-  } catch {
-    throw new InvalidTokenError('Token body is not valid JSON');
+    return verifySignedPayload<GuessTokenPayload>(token, 'guess-token');
+  } catch (error) {
+    if (error instanceof ExpiredPayloadError) throw new ExpiredTokenError(error.message);
+    if (error instanceof InvalidSignatureError) throw new InvalidTokenError(error.message);
+    throw error;
   }
-
-  if (Date.now() > payload.exp) {
-    throw new ExpiredTokenError('Token has expired');
-  }
-
-  return payload;
 }
