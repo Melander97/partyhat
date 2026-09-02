@@ -30,6 +30,8 @@ export type PoolExhaustedResponse = {
   revealedPrice: number;
   finalStreak: number;
   durationMs: number;
+  /** Signed proof the run legitimately ended this way — required by the leaderboard submit route. */
+  receipt: string;
 };
 
 export type WrongGuessResponse = {
@@ -37,6 +39,8 @@ export type WrongGuessResponse = {
   revealedPrice: number;
   finalStreak: number;
   durationMs: number;
+  /** Signed proof the run legitimately ended this way — required by the leaderboard submit route. */
+  receipt: string;
 };
 
 export type GuessResponse = CorrectGuessResponse | PoolExhaustedResponse | WrongGuessResponse;

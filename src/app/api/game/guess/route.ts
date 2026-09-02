@@ -7,6 +7,7 @@ import {
   InvalidTokenError,
   ExpiredTokenError,
 } from '@/lib/game/token';
+import { issueRunReceipt } from '@/lib/game/receipt';
 import type {
   GuessErrorResponse,
   WrongGuessResponse,
@@ -30,9 +31,10 @@ function isGuess(value: unknown): value is Guess {
  *
  * On a correct guess, issues a new token for the next round and returns the
  * next mystery item WITHOUT its price, same as /api/game/start.
- * On a wrong guess, returns the final streak + duration — this is what the
- * leaderboard submission route will eventually trust instead of a raw
- * client-supplied number.
+ * On a wrong guess (or the pool exhausting on a correct one), the run has
+ * ended — the response includes a signed receipt proving the final streak
+ * and duration genuinely happened, which the leaderboard submit route will
+ * require instead of trusting a client-supplied number.
  */
 export async function POST(request: Request) {
   let body: GuessRequestBody;
@@ -83,11 +85,13 @@ export async function POST(request: Request) {
 
   if (!correct) {
     const durationMs = Date.now() - payload.startedAt;
+    const receipt = issueRunReceipt({ runId: payload.runId, streak: payload.streak, durationMs });
     return NextResponse.json<WrongGuessResponse>({
       correct: false,
       revealedPrice: mysteryItem.price,
       finalStreak: payload.streak,
       durationMs,
+      receipt,
     });
   }
 
@@ -98,12 +102,14 @@ export async function POST(request: Request) {
     // Pool exhausted — mirrors the existing client fallback in state.ts's
     // 'next' handler: end the run rather than crash.
     const durationMs = Date.now() - payload.startedAt;
+    const receipt = issueRunReceipt({ runId: payload.runId, streak: newStreak, durationMs });
     return NextResponse.json<PoolExhaustedResponse>({
       correct: true,
       poolExhausted: true,
       revealedPrice: mysteryItem.price,
       finalStreak: newStreak,
       durationMs,
+      receipt,
     });
   }
 
