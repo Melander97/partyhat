@@ -41,3 +41,23 @@ export type Item = typeof items.$inferSelect;
 export type NewItem = typeof items.$inferInsert;
 export type Price = typeof prices.$inferSelect;
 export type NewPrice = typeof prices.$inferInsert;
+
+/**
+ * A submitted leaderboard run. Only written once a run has ended and the
+ * player chose to submit it — casual play that's never submitted leaves no
+ * row here at all.
+ */
+export const leaderboardEntries = pgTable('leaderboard_entries', {
+  id: serial('id').primaryKey(),
+  /** From the run's signed receipt. Unique so the same completed run can't be submitted twice. */
+  runId: text('run_id').notNull().unique(),
+  /** Anonymous per-browser id, not a real account. Powers "your best run" and future rate limiting. */
+  clientId: text('client_id').notNull(),
+  handle: text('handle').notNull(),
+  streak: integer('streak').notNull(),
+  durationMs: integer('duration_ms').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type LeaderboardEntry = typeof leaderboardEntries.$inferSelect;
+export type NewLeaderboardEntry = typeof leaderboardEntries.$inferInsert;
