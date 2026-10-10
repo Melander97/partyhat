@@ -31,6 +31,12 @@ export interface GameState {
   wonByExhaustion: boolean;
   startedAt: number | null;
   finalElapsedMs: number | null;
+  /**
+   * Signed proof the run ended with this streak and duration. Only set once
+   * the run is over, and required by the leaderboard submit route. Null for
+   * a run still in progress.
+   */
+  receipt: string | null;
   /** Signed token for the *current* guessing round. Sent with the next guess. */
   token: string;
   pendingNext: PendingNext | null;
@@ -61,6 +67,7 @@ export function gameReducer(state: GameState | null, action: GameAction): GameSt
       // stamped at the /api/game/start call this is a response to.
       startedAt: Date.now(),
       finalElapsedMs: null,
+      receipt: null,
       token: action.token,
       pendingNext: null,
       notice: action.notice ?? null,
@@ -88,6 +95,7 @@ export function gameReducer(state: GameState | null, action: GameAction): GameSt
           wonByExhaustion: false,
           revealedPrice: result.revealedPrice,
           finalElapsedMs: result.durationMs,
+          receipt: result.receipt,
         };
       }
 
@@ -101,6 +109,7 @@ export function gameReducer(state: GameState | null, action: GameAction): GameSt
           revealedPrice: result.revealedPrice,
           streak: result.finalStreak,
           finalElapsedMs: result.durationMs,
+          receipt: result.receipt,
         };
       }
 
