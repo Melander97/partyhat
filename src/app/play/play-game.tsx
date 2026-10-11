@@ -10,6 +10,7 @@ import { GameButton } from '@/components/game/game-button';
 import { RecordsDisplay } from '@/components/game/records-display';
 import { RevealedPrice } from '@/components/game/revealed-price';
 import { RunTimer } from '@/components/game/run-timer';
+import { SubmitScoreForm } from '@/components/game/submit-score-form';
 import { VerdictBadge } from '@/components/game/verdict-badge';
 import { useRecords } from '@/hooks/use-records';
 import { formatGP } from '@/lib/format';
@@ -206,6 +207,7 @@ export function PlayGame() {
             records={records}
             recordsMounted={recordsMounted}
             lastResult={lastResult}
+            receipt={state.receipt}
             onRestart={onRestart}
             restarting={restarting}
           />
@@ -221,6 +223,7 @@ interface GameOverBlockProps {
   records: ReturnType<typeof useRecords>['records'];
   recordsMounted: boolean;
   lastResult: ReturnType<typeof useRecords>['lastResult'];
+  receipt: string | null;
   onRestart: () => void;
   restarting: boolean;
 }
@@ -231,6 +234,7 @@ function GameOverBlock({
   records,
   recordsMounted,
   lastResult,
+  receipt,
   onRestart,
   restarting,
 }: GameOverBlockProps) {
@@ -260,6 +264,8 @@ function GameOverBlock({
       </div>
 
       {recordsMounted && <RecordsDisplay records={records} newRecord={lastResult} />}
+
+      <SubmitScoreForm receipt={receipt} streak={streak} />
 
       <GameButton
         type="button"
