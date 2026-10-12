@@ -48,6 +48,12 @@ export default function Home() {
             Play partyhat →
           </Link>
           <Link
+            href="/leaderboard"
+            className="border-border bg-bg-panel hover:border-accent hover:text-accent rounded-md border px-6 py-3 text-sm font-medium transition"
+          >
+            Leaderboard
+          </Link>
+          <Link
             href="https://github.com/Melander97/partyhat"
             target="_blank"
             rel="noopener noreferrer"

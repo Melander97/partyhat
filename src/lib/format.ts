@@ -19,3 +19,15 @@ export function formatGP(amount: number): string {
   }
   return `${(amount / 1_000_000_000).toFixed(1)}B`;
 }
+
+/**
+ * Formats a run length for display: "42s" under a minute, "2m 5s" above.
+ * Whole seconds only; the exact milliseconds still decide ranking ties.
+ */
+export function formatRunDuration(ms: number): string {
+  const totalSeconds = ms / 1000;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+}
