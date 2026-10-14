@@ -2,8 +2,8 @@
  * Verifies the submit route's rate limit against a running dev server.
  *
  * Sends junk submissions (an invalid receipt, so nothing is ever written to
- * the database) until the limit kicks in. Needs UPSTASH_REDIS_REST_URL and
- * UPSTASH_REDIS_REST_TOKEN in your .env; without them the limiter is off by
+ * the database) until the limit kicks in. Needs the Redis REST URL and token
+ * (UPSTASH_REDIS_REST_* or KV_REST_API_*) in your .env; without them the limiter is off by
  * design and this script says so instead of failing.
  *
  * Heads up: this uses up your own quota for the next 10 minutes, so wait
@@ -38,7 +38,9 @@ async function submitJunk() {
 }
 
 async function main() {
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  const hasUrl = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const hasToken = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  if (!hasUrl || !hasToken) {
     console.log('SKIP: Upstash env vars not set, so the limiter is off locally (expected).');
     return;
   }
