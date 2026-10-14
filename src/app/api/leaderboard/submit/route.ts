@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validateHandle } from '@/lib/leaderboard/handle';
 import { getRankOfEntry, insertEntry } from '@/lib/leaderboard/db';
+import { checkSubmitRateLimit } from '@/lib/rate-limit';
 import { ExpiredReceiptError, InvalidReceiptError, verifyRunReceipt } from '@/lib/game/receipt';
 import type { SubmitErrorResponse, SubmitResponse } from '@/lib/leaderboard/api-types';
 
@@ -20,6 +21,15 @@ function fail(error: string, status: number) {
  * run twice is rejected by the unique run id, not by a pre-check.
  */
 export async function POST(request: Request) {
+  // First, before any parsing or verification: every attempt counts, valid or not.
+  const limit = await checkSubmitRateLimit(request);
+  if (!limit.ok) {
+    return NextResponse.json<SubmitErrorResponse>(
+      { error: 'Too many submissions, try again later' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
+    );
+  }
+
   let body: Record<string, unknown>;
   try {
     const parsed: unknown = await request.json();
