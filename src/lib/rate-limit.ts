@@ -27,14 +27,14 @@ function createLimiter(
   requests: number,
   window: Parameters<typeof Ratelimit.slidingWindow>[1],
 ) {
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // The Vercel Marketplace integration has historically named these KV_REST_API_*,
+  // while an Upstash console database uses UPSTASH_REDIS_REST_*. Accept both.
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
 
   if (!url || !token) {
     if (process.env.NODE_ENV === 'production') {
-      console.warn(
-        `Rate limiting is OFF for "${prefix}": UPSTASH_REDIS_REST_URL/TOKEN are not set`,
-      );
+      console.warn(`Rate limiting is OFF for "${prefix}": no Redis URL/token env vars are set`);
     }
     return null;
   }
