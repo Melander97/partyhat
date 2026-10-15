@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { NextResponse } from 'next/server';
 import { getStartingPair } from '@/lib/items/db';
 import { issueGuessToken } from '@/lib/game/token';
+import { checkStartRateLimit } from '@/lib/rate-limit';
 import type { StartResponse, StartErrorResponse } from '@/lib/game/api-types';
 
 /**
@@ -10,7 +11,15 @@ import type { StartResponse, StartErrorResponse } from '@/lib/game/api-types';
  * never receives a price it hasn't earned by guessing), and a signed token
  * that verifies the run's state on the next guess.
  */
-export async function POST() {
+export async function POST(request: Request) {
+  const limit = await checkStartRateLimit(request);
+  if (!limit.ok) {
+    return NextResponse.json<StartErrorResponse>(
+      { error: 'Too many runs started, try again shortly' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
+    );
+  }
+
   const pair = await getStartingPair();
 
   if (!pair) {

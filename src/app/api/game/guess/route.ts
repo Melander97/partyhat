@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getItemsByIds, getRandomChallenger } from '@/lib/items/db';
 import { isGuessCorrect, type Guess } from '@/lib/game/rules';
+import { checkGuessRateLimit } from '@/lib/rate-limit';
 import {
   issueGuessToken,
   verifyGuessToken,
@@ -37,6 +38,14 @@ function isGuess(value: unknown): value is Guess {
  * require instead of trusting a client-supplied number.
  */
 export async function POST(request: Request) {
+  const limit = await checkGuessRateLimit(request);
+  if (!limit.ok) {
+    return NextResponse.json<GuessErrorResponse>(
+      { error: 'Too many guesses, slow down' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } },
+    );
+  }
+
   let body: GuessRequestBody;
   try {
     body = (await request.json()) as GuessRequestBody;

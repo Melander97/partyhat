@@ -46,21 +46,25 @@ function createLimiter(
   });
 }
 
-// Module-level so the limiter (and its connection) is reused between
+// Module-level so each limiter (and its connection) is reused between
 // requests on a warm server instead of being rebuilt every time.
 const submitLimiter = createLimiter('submit', 10, '10 m');
+// Generous for people (a run is a handful of guesses, restarts are frequent,
+// a household may share one IP) but a hard ceiling for a script.
+const startLimiter = createLimiter('start', 30, '10 m');
+const guessLimiter = createLimiter('guess', 120, '1 m');
 
 /**
- * Checks and counts one leaderboard submission attempt from this caller.
+ * Checks and counts one request from this caller against a limiter.
  * Fails open: if Redis is unreachable we let the request through rather
- * than turning a rate-limit outage into a leaderboard outage. The receipt
- * checks and unique run id still apply either way.
+ * than turning a rate-limit outage into a game outage. The signed tokens,
+ * receipts and unique run ids still apply either way.
  */
-export async function checkSubmitRateLimit(request: Request): Promise<RateLimitResult> {
-  if (submitLimiter === null) return { ok: true };
+async function check(limiter: Ratelimit | null, request: Request): Promise<RateLimitResult> {
+  if (limiter === null) return { ok: true };
 
   try {
-    const { success, reset } = await submitLimiter.limit(getClientIp(request));
+    const { success, reset } = await limiter.limit(getClientIp(request));
     if (success) return { ok: true };
     return { ok: false, retryAfterSeconds: Math.max(1, Math.ceil((reset - Date.now()) / 1000)) };
   } catch (error) {
@@ -68,3 +72,7 @@ export async function checkSubmitRateLimit(request: Request): Promise<RateLimitR
     return { ok: true };
   }
 }
+
+export const checkSubmitRateLimit = (request: Request) => check(submitLimiter, request);
+export const checkStartRateLimit = (request: Request) => check(startLimiter, request);
+export const checkGuessRateLimit = (request: Request) => check(guessLimiter, request);
