@@ -60,4 +60,24 @@ rejects('___', 'underscores only');
 rejects('---', 'hyphens only');
 rejects('- - -', 'hyphens and spaces only');
 
+console.log('\n6. Profanity');
+rejects('fuck', 'a plain profane word');
+rejects('FUCK', 'the same word in capitals');
+rejects('sh1t', 'leetspeak');
+rejects('f_u_c_k', 'letters split by underscores');
+rejects('f u c k', 'letters split by spaces');
+rejects('f-u-c-k', 'letters split by hyphens');
+rejects('xxfuckxx', 'a profane word inside a longer handle');
+accepts('Scunthorpe', 'Scunthorpe', 'a town name that contains a flagged substring');
+accepts('Assassin', 'Assassin', 'an innocent word that contains a flagged substring');
+accepts('Classic', 'Classic', 'another innocent substring case');
+accepts('Hancock', 'Hancock', 'a surname that contains a flagged substring');
+accepts('Zezima', 'Zezima', 'a well-known OSRS name');
+accepts('Iron Man', 'Iron Man', 'an ordinary two-word handle');
+const profane = validateHandle('fuck');
+assert(
+  !profane.ok && profane.error.includes("isn't allowed"),
+  'profanity error message is player-friendly',
+);
+
 console.log('\nAll checks passed.');
