@@ -56,7 +56,11 @@ Not affiliated with Jagex Ltd.
 git clone git@github.com:melander97/partyhat.git
 cd partyhat
 npm install
-cp .env.example .env.local
+cp .env.example .env
+# fill in the values in .env (see the comments inside)
+npm run db:push            # create the tables in your database
+npm run db:seed-items      # load the item list
+npm run db:refresh-prices  # load current prices
 npm run dev
 ```
 
