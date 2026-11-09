@@ -38,7 +38,10 @@ export default function Home() {
           Higher or Lower, but with Old School RuneScape items.
         </p>
 
-        <p className="text-text-muted mt-2 text-sm">Coming soon.</p>
+        <p className="text-text-muted mt-3 max-w-md text-sm">
+          Guess whether the mystery item trades for more or less gp than the one shown, using live
+          Grand Exchange prices. One wrong guess ends your run.
+        </p>
 
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:gap-4">
           <Link
